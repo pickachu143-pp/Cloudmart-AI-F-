@@ -1,0 +1,192 @@
+# ================================
+# CloudMart AI — Deployments
+# Backend API, frontend (Nginx + static build), and a MongoDB instance
+# for local/demo clusters. In production, prefer a managed MongoDB /
+# IBM Cloudant instance instead of the in-cluster mongo Deployment below.
+# ================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudmart-backend
+  namespace: cloudmart
+  labels:
+    app: cloudmart-ai
+    tier: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: cloudmart-ai
+      tier: backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: cloudmart-ai
+        tier: backend
+    spec:
+      containers:
+        - name: backend
+          image: cloudmart-ai/backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: cloudmart-config
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cloudmart-secrets
+                  key: JWT_SECRET
+            - name: CLOUDANT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cloudmart-secrets
+                  key: CLOUDANT_URL
+            - name: CLOUDANT_APIKEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudmart-secrets
+                  key: CLOUDANT_APIKEY
+            - name: WATSON_NLU_APIKEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudmart-secrets
+                  key: WATSON_NLU_APIKEY
+            - name: WATSON_NLU_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cloudmart-secrets
+                  key: WATSON_NLU_URL
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudmart-frontend
+  namespace: cloudmart
+  labels:
+    app: cloudmart-ai
+    tier: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudmart-ai
+      tier: frontend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: cloudmart-ai
+        tier: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: cloudmart-ai/frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 20
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo
+  namespace: cloudmart
+  labels:
+    app: cloudmart-ai
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudmart-ai
+      tier: database
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: cloudmart-ai
+        tier: database
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:7
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: mongo-storage
+              mountPath: /data/db
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+      volumes:
+        - name: mongo-storage
+          persistentVolumeClaim:
+            claimName: mongo-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongo-pvc
+  namespace: cloudmart
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

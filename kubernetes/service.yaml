@@ -1,0 +1,60 @@
+# ================================
+# CloudMart AI — Services
+# Stable internal networking for each Deployment.
+# ================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: cloudmart
+  labels:
+    app: cloudmart-ai
+    tier: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: cloudmart-ai
+    tier: backend
+  ports:
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
+      name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: cloudmart
+  labels:
+    app: cloudmart-ai
+    tier: frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: cloudmart-ai
+    tier: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-service
+  namespace: cloudmart
+  labels:
+    app: cloudmart-ai
+    tier: database
+spec:
+  type: ClusterIP
+  selector:
+    app: cloudmart-ai
+    tier: database
+  ports:
+    - port: 27017
+      targetPort: 27017
+      protocol: TCP
+      name: mongo
