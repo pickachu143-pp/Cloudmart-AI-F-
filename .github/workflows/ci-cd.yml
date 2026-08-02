@@ -117,37 +117,4 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
-    name: Deploy to Kubernetes
-    needs: [docker-build-push]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: "v1.30.0"
-
-      - name: Configure kubeconfig
-        run: |
-          mkdir -p "$HOME/.kube"
-          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 -d > "$HOME/.kube/config"
-
-      - name: Apply manifests
-        run: |
-          kubectl apply -f kubernetes/namespace.yaml
-          kubectl apply -f kubernetes/configmap.yaml
-          kubectl apply -f kubernetes/secrets.yaml
-          kubectl apply -f kubernetes/deployment.yaml
-          kubectl apply -f kubernetes/service.yaml
-          kubectl apply -f kubernetes/ingress.yaml
-          kubectl apply -f kubernetes/hpa.yaml
-
-      - name: Roll out new images
-        run: |
-          kubectl set image deployment/cloudmart-backend backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/backend:${{ github.sha }} -n cloudmart
-          kubectl set image deployment/cloudmart-frontend frontend=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/frontend:${{ github.sha }} -n cloudmart
-          kubectl rollout status deployment/cloudmart-backend -n cloudmart
-          kubectl rollout status deployment/cloudmart-frontend -n cloudmart
+  
