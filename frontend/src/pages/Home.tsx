@@ -15,17 +15,27 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     (async () => {
+      
       try {
-        const [{ products }, recs] = await Promise.all([
-          productService.list({ limit: 8, sort: "rating" }),
-          recommendationService.getForMe(),
-        ]);
-        setFeatured(products);
-        setRecommended(recs.products);
-        setPersonalized(recs.personalized);
-      } finally {
-        setLoading(false);
-      }
+  const { products } = await productService.list({
+    limit: 8,
+    sort: "rating",
+  });
+
+  setFeatured(products);
+
+  try {
+    const recs = await recommendationService.getForMe();
+    setRecommended(recs.products);
+    setPersonalized(recs.personalized);
+  } catch (err) {
+    console.log("Recommendation API failed", err);
+    setRecommended(products);
+    setPersonalized(false);
+  }
+} finally {
+  setLoading(false);
+}
     })();
   }, []);
 
